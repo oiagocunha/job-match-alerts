@@ -6,7 +6,6 @@ import { ProfileSelector } from "@/components/ProfileSelector";
 import { ProfileProvider } from "@/context/ProfileContext";
 import {
   AlertRule,
-  AlertRuleCreate,
   createAlertRule,
   deleteAlertRule,
   fetchAlertRules,
@@ -171,6 +170,17 @@ export default function App() {
                   className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1"
                 />
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                Frequência
+                <select
+                  value={frequency}
+                  onChange={(e) => setFrequency(e.target.value as "daily" | "weekly")}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1"
+                >
+                  <option value="weekly">Semanal</option>
+                  <option value="daily">Diária</option>
+                </select>
+              </label>
               <button
                 type="submit"
                 disabled={submitting || apiStatus !== "ok"}
@@ -191,8 +201,8 @@ export default function App() {
                   <div>
                     <p className="font-medium">{rule.name}</p>
                     <p className="text-sm text-slate-400">
-                      {rule.keywords ?? ""} · score ≥ {rule.min_score}
-                      {rule.remote_only ? " · remoto" : ""}
+                      {rule.keywords ?? "—"} · score ≥ {rule.min_score}
+                      {rule.remote_only ? " · remoto" : ""} · {rule.frequency}
                     </p>
                   </div>
                   <button
