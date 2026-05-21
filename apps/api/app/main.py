@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import api_router
-from app.core.config import CORS_ORIGINS, DATABASE_URL, database_host
+from app.core.config import CORS_ORIGINS, DATABASE_URL, database_host, database_url_source
 from app.db.base import Base
 from app.db.migrate import run_migrations
 from app.db.session import engine
@@ -23,23 +23,18 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     host = database_host()
+    logging.info("DB config via %s, host=%s", database_url_source(), host)
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         async with engine.connect() as conn:
             await run_migrations(conn)
     except Exception as exc:
-        if host in ("postgres", "db"):
-            hint = (
-                "DATABASE_URL inválida: senha com ?, @ ou # precisa estar URL-encoded "
-                "(no Supabase use o botão Copy na URI já codificada). "
-                "Formato: postgresql+asyncpg://postgres:SENHA@db.xxxx.supabase.co:5432/postgres"
-            )
-        else:
-            hint = (
-                f"Não foi possível conectar ao Postgres (host={host!r}). "
-                "Confira DATABASE_URL (Supabase: Session mode, postgresql+asyncpg://, host db.*.supabase.co)."
-            )
+        hint = (
+            f"Falha ao conectar no Postgres (host={host!r}, via {database_url_source()}). "
+            "Render: cadastre DB_HOST + DB_PASSWORD no painel (o .env do GitHub não entra no container). "
+            "Supabase Session, porta 5432."
+        )
         logging.error("%s", hint)
         raise RuntimeError(hint) from exc
     yield

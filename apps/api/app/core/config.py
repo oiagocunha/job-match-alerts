@@ -16,6 +16,7 @@ for _dir in Path(__file__).resolve().parents:
         load_dotenv(_dir / ".env.local", override=True)
         break
 
+
 def _encode_password_in_url(url: str) -> str:
     """
     Senhas do Supabase costumam ter ?, @, #, etc.
@@ -54,23 +55,95 @@ def normalize_database_url(raw: str) -> str:
         url = "postgresql+asyncpg://" + url[len("postgres://") :]
     elif url.startswith("postgresql://") and "+asyncpg" not in url.split("://", 1)[0]:
         url = "postgresql+asyncpg://" + url[len("postgresql://") :]
-    url = _encode_password_in_url(url)
+    return _encode_password_in_url(url)
+
+
+def build_database_url_from_parts() -> str | None:
+    """
+    Preferível no Render + Supabase: evita colar URI inteira com senha quebrando o parse.
+    Defina DB_HOST, DB_PASSWORD, etc. (deixe DATABASE_URL vazia ou apague).
+    """
+    host = os.getenv("DB_HOST", "").strip()
+    password = os.getenv("DB_PASSWORD", "").strip()
+    if not host or not password:
+        return None
+    user = os.getenv("DB_USER", "postgres").strip() or "postgres"
+    port = os.getenv("DB_PORT", "5432").strip() or "5432"
+    name = os.getenv("DB_NAME", "postgres").strip() or "postgres"
+    safe_pass = quote_plus(password)
+    base = f"postgresql+asyncpg://{quote_plus(user)}:{safe_pass}@{host}:{port}/{name}"
+    if os.getenv("DB_SSL", "true").strip().lower() in ("1", "true", "yes", "on"):
+        sep = "&" if "?" in base else "?"
+        if "sslmode=" not in base:
+            base = f"{base}{sep}sslmode=require"
+    return base
+
+
+def _hostname_of(url: str) -> str | None:
+    try:
+        return urlparse(url.replace("postgresql+asyncpg", "postgresql")).hostname
+    except Exception:
+        return None
+
+
+def _is_managed_hosting() -> bool:
+    """Render/Vercel etc. — .env do repo não existe no container."""
+    return bool(
+        os.getenv("RENDER")
+        or os.getenv("RENDER_SERVICE_ID")
+        or os.getenv("RENDER_EXTERNAL_URL"),
+    )
+
+
+def resolve_database_url() -> str:
+    from_parts = build_database_url_from_parts()
+    if from_parts:
+        return from_parts
+
+    raw = os.getenv("DATABASE_URL", "").strip()
+    if not raw:
+        if _is_managed_hosting():
+            raise RuntimeError(
+                "Banco não configurado no Render. Adicione no painel Environment: "
+                "DB_HOST, DB_PASSWORD, DB_USER, DB_PORT, DB_NAME (ou DATABASE_URL encoded). "
+                "O .env local não é enviado no deploy.",
+            )
+        raw = "postgresql+asyncpg://postgres:postgres@localhost:5433/job_match"
+    url = normalize_database_url(raw)
+    host = _hostname_of(url)
+
+    if host in ("postgres", "db"):
+        url = _encode_password_in_url(url)
+        host = _hostname_of(url)
+
+    if host == "db":
+        raise RuntimeError(
+            "DATABASE_URL usa host 'db' (só existe no Docker Compose local). "
+            "No Render: apague DATABASE_URL e cadastre DB_HOST, DB_PASSWORD, DB_USER, DB_PORT, DB_NAME "
+            "(veja .env na raiz do repo).",
+        )
+    if host == "postgres":
+        raise RuntimeError(
+            "DATABASE_URL inválida: senha com ? ou @ quebrou o host (ficou 'postgres'). "
+            "No Render prefira DB_HOST=db.xxxx.supabase.co + DB_PASSWORD (senha crua) "
+            "OU DATABASE_URL=postgresql+asyncpg://postgres:4w5cDeW%3FvvZ%40Ci8@db.xxxx.supabase.co:5432/postgres",
+        )
     return url
 
 
-_raw_db = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5433/job_match",
-)
-DATABASE_URL = normalize_database_url(_raw_db)
+DATABASE_URL = resolve_database_url()
 
 
 def database_host() -> str | None:
-    try:
-        parsed = urlparse(DATABASE_URL.replace("postgresql+asyncpg", "postgresql"))
-        return parsed.hostname
-    except Exception:
-        return None
+    return _hostname_of(DATABASE_URL)
+
+
+def database_url_source() -> str:
+    if os.getenv("DB_HOST", "").strip() and os.getenv("DB_PASSWORD", "").strip():
+        return "DB_* parts"
+    return "DATABASE_URL"
+
+
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")
 CORS_ORIGINS = [
     origin.strip()
