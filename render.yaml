@@ -1,0 +1,23 @@
+# Blueprint Render — só Web Service (API).
+# Postgres: use Neon/Supabase OU o mesmo limite free do Render já usado no public-data-monitor.
+# Ver docs/DEPLOY.md
+
+services:
+  - type: web
+    name: job-match-alerts-api
+    runtime: docker
+    rootDir: apps/api
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: UPLOAD_DIR
+        value: /tmp/uploads

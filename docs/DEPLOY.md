@@ -1,4 +1,4 @@
-# Deploy  demo pública (portfólio)
+# Deploy — demo pública (portfólio)
 
 Objetivo: **link da API (Swagger)** + **link da UI** sem transformar o projeto em produto.
 
@@ -6,62 +6,122 @@ Objetivo: **link da API (Swagger)** + **link da UI** sem transformar o projeto e
 
 | Componente | Onde | Por quê |
 |------------|------|---------|
-| API + Postgres | **Render** (ou Railway) | FastAPI + banco persistente, igual ao Public Data Monitor |
-| Frontend | **Vercel** | Build estático do Vite; barato e rápido |
+| **API** | Render (Web Service, Docker) | FastAPI — igual ao Public Data Monitor |
+| **Postgres** | **Neon** ou **Supabase** (recomendado) | Render free = **1 banco por conta**; se já existe o do `public-data-monitor`, use Postgres externo |
+| **Frontend** | Vercel | Build estático do Vite |
 
-## 1. API no Render
+---
 
-1. Crie um **PostgreSQL** no Render e copie a `DATABASE_URL` interna (`postgresql+asyncpg://...`).
-2. **Web Service** conectado ao repositório:
-   - **Root Directory:** `apps/api` (ou build na raiz com Dockerfile em `apps/api`)
-   - **Build:** `pip install .`
-   - **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-3. Variáveis de ambiente:
-   - `DATABASE_URL`  URL asyncpg do Postgres Render
-   - `CORS_ORIGINS`  URL da Vercel (ex.: `https://job-match-alerts.vercel.app`)
-   - `OPENAI_API_KEY`  opcional; sem ela, parte do parse/análise fica limitada
-   - `UPLOAD_DIR`  `/tmp/uploads` ou disco efêmero do Render (PDFs não persistem entre deploys no plano free  aceitável para demo)
-4. Após deploy, teste:
-   - `https://SUA-API.onrender.com/health`
-   - `https://SUA-API.onrender.com/docs`
+## Limite Render: um Postgres free por conta
 
-Atualize o README com essas URLs na seção **Demo online**.
+Se aparecer:
 
-## 2. Frontend na Vercel
+`cannot have more than one active free tier database`
 
-1. Importe o repositório na Vercel.
-2. **Root Directory:** `apps/web`
-3. **Build Command:** `npm run build`
-4. **Output Directory:** `dist`
-5. Variável de ambiente:
-   - `VITE_API_URL` = `https://SUA-API.onrender.com` (sem barra final)
-6. O arquivo `apps/web/vercel.json` já configura SPA fallback.
+**Não crie** outro PostgreSQL no Render. Opções:
 
-Redeploy após mudar `VITE_API_URL`.
+| Opção | Quando usar |
+|-------|-------------|
+| **A — Neon (recomendado)** | Banco free separado; API continua no Render |
+| **B — Supabase** | Idem, connection string no painel |
+| **C — Mesmo Postgres do Public Data Monitor** | Criar database `job_match` no mesmo cluster (avançado; dois projetos no mesmo DB) |
+| **D — Só Swagger** | API no Render + Neon; UI só no README (screenshots) |
 
-## 3. CORS
+---
 
-Na API, `CORS_ORIGINS` deve incluir exatamente a origem da Vercel. Exemplo:
+## 1. Postgres no Neon (5 min)
 
-```env
-CORS_ORIGINS=https://job-match-alerts.vercel.app,http://localhost:5173
-```
+1. [neon.tech](https://neon.tech) → projeto novo → copie a connection string.
+2. Ajuste para asyncpg (a API também converte `postgresql://` automaticamente):
 
-## 4. Limitações da demo free
+   ```env
+   DATABASE_URL=postgresql+asyncpg://user:pass@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
 
-- Render free “dorme”  primeiro acesso pode demorar ~30s.
-- Uploads em disco efêmero  PDF some após restart; para demo, reimportar é ok.
-- LinkedIn/Gupy podem bloquear ou mudar HTML no servidor remoto.
-- OpenAI gera custo por uso  defina limite na conta OpenAI.
+   Neon costuma exigir SSL — `?sslmode=require` no final costuma funcionar com asyncpg.
 
-## 5. Alternativa: só API pública
+3. Guarde a URL; vai no Render abaixo.
 
-Se não quiser Vercel agora, publique **apenas a API** e use o Swagger como demo principal (como no Public Data Monitor). A UI local continua válida para screenshots no README.
+---
 
-## Checklist pós-deploy
+## 2. API no Render (sem criar Postgres lá)
 
-- [ ] Health 200
-- [ ] Swagger abre
-- [ ] UI na Vercel chama API (sem erro CORS no console)
-- [ ] URLs no README atualizadas
-- [ ] Screenshot em `docs/images/swagger-home.png`
+### Root Directory (obrigatório)
+
+| Campo | Valor |
+|-------|--------|
+| **Root Directory** | `apps/api` |
+| **Runtime** | Docker |
+
+Erro `open Dockerfile: no such file or directory` = Root Directory vazio ou na raiz do monorepo.
+
+### Environment Variables (Web Service)
+
+| Variável | Valor |
+|----------|--------|
+| `DATABASE_URL` | URL do **Neon** (ou Supabase) — **não** `db:5432` |
+| `CORS_ORIGINS` | `https://SEU-APP.vercel.app,http://localhost:5173` |
+| `OPENAI_API_KEY` | sua chave (opcional) |
+| `UPLOAD_DIR` | `/tmp/uploads` |
+
+**Não** use “Link Database” do Render se você não tiver slot free de Postgres.
+
+### Deploy
+
+Manual Deploy → teste:
+
+- `https://SUA-API.onrender.com/health` → `{"status":"ok",...}`
+- `https://SUA-API.onrender.com/docs`
+
+---
+
+## 3. Frontend na Vercel
+
+| Campo | Valor |
+|-------|--------|
+| **Root Directory** | `apps/web` |
+| **Build** | `npm run build` |
+| **Output** | `dist` |
+| `VITE_API_URL` | `https://SUA-API.onrender.com` (sem `/` final, sem `/api`) |
+
+Depois de salvar `VITE_API_URL` → **Redeploy** (variável Vite entra no build).
+
+---
+
+## 4. CORS
+
+`CORS_ORIGINS` na API deve incluir a URL exata da Vercel (com `https://`, sem barra no final).
+
+---
+
+## 5. Opção: reutilizar Postgres do Public Data Monitor
+
+Se quiser **um único** Postgres no Render:
+
+1. No banco existente, crie outro database (via psql ou painel, se disponível):
+
+   ```sql
+   CREATE DATABASE job_match;
+   ```
+
+2. Monte `DATABASE_URL` apontando para esse database (mesmo host/user do PDM, nome `job_match`).
+
+Cuidado: dois apps no mesmo cluster — ok para portfólio, evite em produção.
+
+---
+
+## 6. Limitações demo free
+
+- Render Web Service “dorme” ~30s no primeiro hit.
+- PDF em `/tmp/uploads` some no restart do container.
+- OpenAI gera custo — limite na conta.
+
+---
+
+## Checklist
+
+- [ ] `DATABASE_URL` aponta para Neon/Supabase (não host `db`)
+- [ ] `/health` 200 no Render
+- [ ] `VITE_API_URL` + redeploy Vercel
+- [ ] Sem erro CORS no console do browser
+- [ ] URLs no README

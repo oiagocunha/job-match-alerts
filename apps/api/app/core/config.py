@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -14,10 +15,31 @@ for _dir in Path(__file__).resolve().parents:
         load_dotenv(_dir / ".env.local", override=True)
         break
 
-DATABASE_URL = os.getenv(
+def normalize_database_url(raw: str) -> str:
+    """Render/Railway costumam entregar postgres:// — asyncpg precisa de postgresql+asyncpg://."""
+    url = raw.strip()
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        return "postgresql+asyncpg://" + url[len("postgres://") :]
+    if url.startswith("postgresql://") and "+asyncpg" not in url.split("://", 1)[0]:
+        return "postgresql+asyncpg://" + url[len("postgresql://") :]
+    return url
+
+
+_raw_db = os.getenv(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@localhost:5433/job_match",
 )
+DATABASE_URL = normalize_database_url(_raw_db)
+
+
+def database_host() -> str | None:
+    try:
+        parsed = urlparse(DATABASE_URL.replace("postgresql+asyncpg", "postgresql"))
+        return parsed.hostname
+    except Exception:
+        return None
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")
 CORS_ORIGINS = [
     origin.strip()

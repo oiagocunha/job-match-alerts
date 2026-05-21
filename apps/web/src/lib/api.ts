@@ -1,10 +1,73 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+const API_BASE = (import.meta.env.VITE_API_URL ?? "").trim().replace(/\/$/, "");
+
+/** Em produção na Vercel, VITE_API_URL precisa apontar para o Render (definida antes do build). */
+export function isApiConfigured(): boolean {
+  return Boolean(API_BASE) || import.meta.env.DEV;
+}
+
+export function getApiConfigError(): string | null {
+  if (import.meta.env.DEV) return null;
+  if (!API_BASE) {
+    return (
+      "API não configurada: na Vercel, defina VITE_API_URL=https://SUA-API.onrender.com " +
+      "(Environment Variables) e faça Redeploy — variáveis VITE_ só entram no build."
+    );
+  }
+  return null;
+}
 
 function apiUrl(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
   if (API_BASE) {
-    return `${API_BASE.replace(/\/$/, "")}${path}`;
+    return `${API_BASE}${normalized}`;
   }
-  return `/api${path}`;
+  if (import.meta.env.DEV) {
+    return `/api${normalized}`;
+  }
+  throw new Error(getApiConfigError() ?? "API não configurada.");
+}
+
+async function readJson<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith("<") || trimmed.startsWith("<!")) {
+    throw new Error(
+      "A API respondeu HTML em vez de JSON. Confira: (1) VITE_API_URL na Vercel = URL do Render, " +
+        "sem barra no final e sem /api; (2) Redeploy após salvar a variável; " +
+        "(3) CORS_ORIGINS no Render inclui a URL da Vercel.",
+    );
+  }
+  if (!text) {
+    throw new Error(`Resposta vazia da API (${res.status}).`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`JSON inválido (${res.status}): ${text.slice(0, 160)}`);
+  }
+}
+
+async function parseError(response: Response): Promise<string> {
+  const text = await response.text();
+  if (text.trimStart().startsWith("<")) {
+    return (
+      "API retornou HTML (página do site). Verifique VITE_API_URL na Vercel e redeploy."
+    );
+  }
+  try {
+    const body = JSON.parse(text) as { detail?: string | { msg?: string }[] };
+    if (typeof body.detail === "string") return body.detail;
+  } catch {
+    /* ignore */
+  }
+  return `Erro ${response.status}`;
+}
+
+async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(apiUrl(path), init);
+  if (!res.ok) throw new Error(await parseError(res));
+  if (res.status === 204) return undefined as T;
+  return readJson<T>(res);
 }
 
 export type AlertFrequency = "daily" | "weekly";
@@ -36,41 +99,24 @@ export interface HealthResponse {
   service: string;
 }
 
-async function parseError(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as { detail?: string | { msg?: string }[] };
-    if (typeof body.detail === "string") return body.detail;
-  } catch {
-    /* ignore */
-  }
-  return `Erro ${response.status}`;
-}
-
 export async function fetchHealth(): Promise<HealthResponse> {
-  const res = await fetch(apiUrl("/health"));
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<HealthResponse>;
+  return apiRequest<HealthResponse>("/health");
 }
 
 export async function fetchAlertRules(): Promise<AlertRule[]> {
-  const res = await fetch(apiUrl("/alert-rules"));
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<AlertRule[]>;
+  return apiRequest<AlertRule[]>("/alert-rules");
 }
 
 export async function createAlertRule(payload: AlertRuleCreate): Promise<AlertRule> {
-  const res = await fetch(apiUrl("/alert-rules"), {
+  return apiRequest<AlertRule>("/alert-rules", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<AlertRule>;
 }
 
 export async function deleteAlertRule(id: number): Promise<void> {
-  const res = await fetch(apiUrl(`/alert-rules/${id}`), { method: "DELETE" });
-  if (!res.ok) throw new Error(await parseError(res));
+  await apiRequest<void>(`/alert-rules/${id}`, { method: "DELETE" });
 }
 
 export interface IntegrationCheck {
@@ -120,9 +166,7 @@ export interface JobImportResult {
 }
 
 export async function fetchIntegrationsStatus(): Promise<IntegrationStatus> {
-  const res = await fetch(apiUrl("/integrations/status"));
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<IntegrationStatus>;
+  return apiRequest<IntegrationStatus>("/integrations/status");
 }
 
 export async function importJobUrl(
@@ -131,24 +175,19 @@ export async function importJobUrl(
 ): Promise<JobImportResult> {
   const q = new URLSearchParams({ analyze: "true" });
   if (profileId != null) q.set("profile_id", String(profileId));
-  const res = await fetch(apiUrl(`/jobs/import?${q}`), {
+  return apiRequest<JobImportResult>(`/jobs/import?${q}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),
   });
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<JobImportResult>;
 }
 
 export async function listJobs(): Promise<JobRead[]> {
-  const res = await fetch(apiUrl("/jobs"));
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<JobRead[]>;
+  return apiRequest<JobRead[]>("/jobs");
 }
 
 export async function deleteJob(id: number): Promise<void> {
-  const res = await fetch(apiUrl(`/jobs/${id}`), { method: "DELETE" });
-  if (!res.ok) throw new Error(await parseError(res));
+  await apiRequest<void>(`/jobs/${id}`, { method: "DELETE" });
 }
 
 export interface ProfileStructured {
@@ -186,26 +225,20 @@ export interface ProfileRead {
 }
 
 export async function listProfiles(): Promise<ProfileSummary[]> {
-  const res = await fetch(apiUrl("/profiles"));
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<ProfileSummary[]>;
+  return apiRequest<ProfileSummary[]>("/profiles");
 }
 
 export async function fetchProfile(id: number): Promise<ProfileRead> {
-  const res = await fetch(apiUrl(`/profiles/${id}`));
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<ProfileRead>;
+  return apiRequest<ProfileRead>(`/profiles/${id}`);
 }
 
 export async function parseResume(file: File, useAi = true): Promise<ProfileRead> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(apiUrl(`/profiles/parse?use_ai=${useAi}`), {
+  return apiRequest<ProfileRead>(`/profiles/parse?use_ai=${useAi}`, {
     method: "POST",
     body: form,
   });
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<ProfileRead>;
 }
 
 export async function updateProfile(
@@ -216,18 +249,15 @@ export async function updateProfile(
     raw_text?: string;
   },
 ): Promise<ProfileRead> {
-  const res = await fetch(apiUrl(`/profiles/${id}`), {
+  return apiRequest<ProfileRead>(`/profiles/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<ProfileRead>;
 }
 
 export async function deleteProfile(id: number): Promise<void> {
-  const res = await fetch(apiUrl(`/profiles/${id}`), { method: "DELETE" });
-  if (!res.ok) throw new Error(await parseError(res));
+  await apiRequest<void>(`/profiles/${id}`, { method: "DELETE" });
 }
 
 export interface RankedJobMatch {
@@ -254,7 +284,7 @@ export async function fetchMatchRank(params: {
   if (params.seniority && params.seniority !== "any") q.set("seniority", params.seniority);
   if (params.min_score != null) q.set("min_score", String(params.min_score));
   if (params.limit) q.set("limit", String(params.limit));
-  const res = await fetch(apiUrl(`/match/rank?${q}`));
-  if (!res.ok) throw new Error(await parseError(res));
-  return res.json() as Promise<{ results: RankedJobMatch[]; profile_required: boolean }>;
+  return apiRequest<{ results: RankedJobMatch[]; profile_required: boolean }>(
+    `/match/rank?${q}`,
+  );
 }

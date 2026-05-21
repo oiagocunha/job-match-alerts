@@ -10,6 +10,7 @@ import {
   deleteAlertRule,
   fetchAlertRules,
   fetchHealth,
+  getApiConfigError,
 } from "@/lib/api";
 
 type Tab = "perfil" | "vagas" | "ats" | "alertas";
@@ -28,6 +29,12 @@ export default function App() {
   const [frequency, setFrequency] = useState<"daily" | "weekly">("weekly");
 
   const load = useCallback(async () => {
+    const configError = getApiConfigError();
+    if (configError) {
+      setApiStatus("error");
+      setError(configError);
+      return;
+    }
     setError(null);
     try {
       await fetchHealth();

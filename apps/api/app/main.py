@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import api_router
-from app.core.config import CORS_ORIGINS
+from app.core.config import CORS_ORIGINS, DATABASE_URL, database_host
 from app.db.base import Base
 from app.db.migrate import run_migrations
 from app.db.session import engine
@@ -22,10 +22,21 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with engine.connect() as conn:
-        await run_migrations(conn)
+    host = database_host()
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with engine.connect() as conn:
+            await run_migrations(conn)
+    except Exception as exc:
+        hint = (
+            f"Não foi possível conectar ao Postgres (host={host!r}). "
+            "No Render: crie um PostgreSQL, copie a **Internal Database URL**, "
+            "defina DATABASE_URL como postgresql+asyncpg://... (não use host 'db' do Docker) "
+            "e vincule o banco ao Web Service."
+        )
+        logging.error("%s URL configurada começa com: %s...", hint, DATABASE_URL[:40])
+        raise RuntimeError(hint) from exc
     yield
 
 
