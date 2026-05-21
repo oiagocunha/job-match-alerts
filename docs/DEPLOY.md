@@ -67,16 +67,15 @@ No Web Service da API → **Environment**:
 
 O app passa a usar variáveis **`DB_*`** (mais seguro no painel).
 
-### Passo B — Copiar dados no Supabase
+### Passo B — Copiar dados no Supabase (Session **pooler**, não Direct)
 
-**Project Settings → Database → Connection string → URI → Session mode (porta 5432)**
+No Supabase: **Connect → Session pooler** (porta **5432**).  
+**Não use** Direct (`db.xxxx.supabase.co`) no Render — conexão direta é IPv6 e o plano free do Render costuma falhar com `Network is unreachable`.
 
-Anote (não cole a URI inteira no Render):
-
-| Campo Supabase | Variável Render |
-|----------------|-----------------|
-| Host (`db.xxxx.supabase.co`) | `DB_HOST` |
-| User (`postgres` ou `postgres.xxxx`) | `DB_USER` |
+| Campo na tela Supabase | Variável Render |
+|------------------------|-----------------|
+| Host (`aws-0-….pooler.supabase.com`) | `DB_HOST` |
+| User (`postgres.SEU_PROJECT_REF`) | `DB_USER` |
 | Password (Reveal) | `DB_PASSWORD` |
 | Port `5432` | `DB_PORT` |
 | Database `postgres` | `DB_NAME` |
@@ -84,9 +83,9 @@ Anote (não cole a URI inteira no Render):
 No Render, crie **só estas** env vars:
 
 ```env
-DB_HOST=db.xxxxxxxxxxxx.supabase.co
-DB_USER=postgres
-DB_PASSWORD=cole-a-senha-crua-aqui-sem-uri
+DB_HOST=aws-0-sa-east-1.pooler.supabase.com
+DB_USER=postgres.gvmiznodbitpoeqhpplx
+DB_PASSWORD=cole-a-senha-crua-aqui
 DB_PORT=5432
 DB_NAME=postgres
 DB_SSL=true
@@ -95,15 +94,17 @@ UPLOAD_DIR=/tmp/uploads
 OPENAI_API_KEY=sk-...
 ```
 
-**Não** defina `DATABASE_URL` ao mesmo tempo ( `DB_*` tem prioridade).
+Substitua host/user pelos valores **exatos** do seu projeto (região e ref aparecem na string do Supabase).
 
-Save → **Manual Deploy**. No log deve aparecer: `DB config via DB_* parts, host=db.xxxx.supabase.co`.
+**Não** defina `DATABASE_URL` ao mesmo tempo (`DB_*` tem prioridade).
 
-### Passo C — Se ainda falhar no Supabase
+Save → **Manual Deploy**. No log: `host=aws-0-….pooler.supabase.com` (não `db.….supabase.co`).
 
-- **Settings → Database → Network**: projeto novo costuma aceitar qualquer IP; em plano pago confira restrições.
-- Tente **Direct connection** (host `db....supabase.co`, porta **5432**), não Transaction pooler na primeira vez.
-- **Reset database password** no Supabase e atualize só `DB_PASSWORD`.
+### Passo C — Se ainda falhar
+
+- Confirma **Session pooler**, não Direct nem Transaction (6543) na primeira subida.
+- **Settings → Database → Network**: allow all IPs em projetos novos.
+- Reset da senha no Supabase → atualize só `DB_PASSWORD`.
 
 ---
 

@@ -141,8 +141,15 @@ def database_url_source() -> str:
 
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")
+def _normalize_cors_origin(origin: str) -> str:
+    o = origin.strip()
+    if len(o) > 1 and o.endswith("/"):
+        o = o.rstrip("/")
+    return o
+
+
 CORS_ORIGINS = [
-    origin.strip()
+    _normalize_cors_origin(origin)
     for origin in os.getenv(
         "CORS_ORIGINS",
         "http://localhost:5173,http://127.0.0.1:5173",
