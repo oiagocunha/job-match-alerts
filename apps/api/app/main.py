@@ -33,6 +33,7 @@ async def lifespan(_: FastAPI):
         hint = _db_connect_hint(host, database_url_source(), exc)
         logging.error("%s", hint)
         raise RuntimeError(hint) from exc
+    yield
 
 
 def _db_connect_hint(host: str | None, source: str, exc: BaseException) -> str:
@@ -49,7 +50,6 @@ def _db_connect_hint(host: str | None, source: str, exc: BaseException) -> str:
         f"{base} Confira DB_HOST/DB_PASSWORD no painel Render. "
         "Supabase no Render: Session pooler (pooler.supabase.com), porta 5432."
     )
-    yield
 
 
 app = FastAPI(

@@ -20,15 +20,26 @@ if "+asyncpg" not in _db_url:
         "(Supabase: troque postgresql:// por postgresql+asyncpg:// no Render).",
     )
 
+def _db_ssl_enabled() -> bool:
+    return os.getenv("DB_SSL", "true").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _url_requested_ssl(url: str) -> bool:
+    if "?" not in url:
+        return False
+    q = url.partition("?")[2].lower()
+    return "sslmode=require" in q or "sslmode=verify-full" in q or "ssl=true" in q
+
+
+def _is_local_db_host(host: str) -> bool:
+    h = host.lower().strip("[]")
+    return h in ("localhost", "127.0.0.1", "::1", "postgres", "db")
+
+
 _host = database_host() or ""
 _connect_args: dict = {}
-_use_ssl = os.getenv("DB_SSL", "true").strip().lower() in ("1", "true", "yes", "on")
-if _host and _use_ssl and (
-    ".render.com" in _host
-    or "supabase.co" in _host
-    or "pooler.supabase.com" in _host
-    or "neon.tech" in _host
-):
+_want_ssl = _db_ssl_enabled() or _url_requested_ssl(DATABASE_URL)
+if _host and _want_ssl and not _is_local_db_host(_host):
     _connect_args["ssl"] = True
 
 engine = create_async_engine(_db_url, echo=False, connect_args=_connect_args)
