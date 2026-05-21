@@ -40,7 +40,14 @@ _host = database_host() or ""
 _connect_args: dict = {}
 _want_ssl = _db_ssl_enabled() or _url_requested_ssl(DATABASE_URL)
 if _host and _want_ssl and not _is_local_db_host(_host):
-    _connect_args["ssl"] = True
+    # asyncpg: "require" = TLS sem verificar cadeia (Supabase pooler usa cert
+    # self-signed na chain; "ssl=True" força verify-full e quebra o handshake).
+    # Para verificação completa use DB_SSL_VERIFY=full.
+    _verify = os.getenv("DB_SSL_VERIFY", "").strip().lower()
+    if _verify in ("full", "verify-full", "verify_full"):
+        _connect_args["ssl"] = True
+    else:
+        _connect_args["ssl"] = "require"
 
 engine = create_async_engine(_db_url, echo=False, connect_args=_connect_args)
 SessionLocal = async_sessionmaker[AsyncSession](engine, expire_on_commit=False)
