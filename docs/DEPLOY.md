@@ -2,12 +2,20 @@
 
 Objetivo: **link da API (Swagger)** + **link da UI** sem transformar o projeto em produto.
 
+## Demo ao vivo (referência)
+
+| Camada | URL |
+|--------|-----|
+| UI (Vercel) | https://job-match-alerts-gut16pzvo-oiagocunhas-projects.vercel.app |
+| API (Render) | https://job-match-alerts.onrender.com — [/docs](https://job-match-alerts.onrender.com/docs) · [/health](https://job-match-alerts.onrender.com/health) |
+| DB | Supabase Postgres (Session pooler) |
+
 ## Visão
 
 | Componente | Onde | Por quê |
 |------------|------|---------|
 | **API** | Render (Web Service, Docker) | FastAPI — igual ao Public Data Monitor |
-| **Postgres** | **Neon** ou **Supabase** (recomendado) | Render free = **1 banco por conta**; se já existe o do `public-data-monitor`, use Postgres externo |
+| **Postgres** | **Supabase** (recomendado) ou Neon | Render free = **1 banco por conta**; se já existe o do `public-data-monitor`, use Postgres externo |
 | **Frontend** | Vercel | Build estático do Vite |
 
 ---
@@ -80,12 +88,12 @@ No Supabase: **Connect → Session pooler** (porta **5432**).
 | Port `5432` | `DB_PORT` |
 | Database `postgres` | `DB_NAME` |
 
-No Render, crie **só estas** env vars:
+No Render, crie **só estas** env vars (valores do **seu** projeto no Supabase — nunca commite senha no repo):
 
 ```env
-DB_HOST=aws-0-sa-east-1.pooler.supabase.com
-DB_USER=postgres.gvmiznodbitpoeqhpplx
-DB_PASSWORD=cole-a-senha-crua-aqui
+DB_HOST=aws-0-REGIAO.pooler.supabase.com
+DB_USER=postgres.SEU_PROJECT_REF
+DB_PASSWORD=<senha do painel Supabase>
 DB_PORT=5432
 DB_NAME=postgres
 DB_SSL=true
@@ -93,6 +101,8 @@ CORS_ORIGINS=https://seu-app.vercel.app,http://localhost:5173
 UPLOAD_DIR=/tmp/uploads
 OPENAI_API_KEY=sk-...
 ```
+
+> **TLS:** o pooler do Supabase apresenta cert auto-assinado na cadeia; a API usa `ssl=require` (criptografa sem verificar), igual ao `sslmode=require` do libpq. Para verificação completa, defina `DB_SSL_VERIFY=full` (precisa cert da CA no container).
 
 Substitua host/user pelos valores **exatos** do seu projeto (região e ref aparecem na string do Supabase).
 
@@ -125,7 +135,7 @@ Preferir **`DB_*`** (seção 2). Alternativa: uma única `DATABASE_URL` (Neon/Su
 
 | Variável | Valor |
 |----------|--------|
-| `CORS_ORIGINS` | `https://SEU-APP.vercel.app,http://localhost:5173` |
+| `CORS_ORIGINS` | `https://job-match-alerts.vercel.app,http://localhost:5173` |
 | `OPENAI_API_KEY` | sua chave (opcional) |
 | `UPLOAD_DIR` | `/tmp/uploads` |
 
@@ -133,10 +143,10 @@ Preferir **`DB_*`** (seção 2). Alternativa: uma única `DATABASE_URL` (Neon/Su
 
 ### Deploy
 
-Manual Deploy → teste:
+Manual Deploy → teste (URL deste projeto):
 
-- `https://SUA-API.onrender.com/health` → `{"status":"ok",...}`
-- `https://SUA-API.onrender.com/docs`
+- https://job-match-alerts.onrender.com/health → `{"status":"ok",...}`
+- https://job-match-alerts.onrender.com/docs
 
 ---
 
@@ -147,7 +157,7 @@ Manual Deploy → teste:
 | **Root Directory** | `apps/web` |
 | **Build** | `npm run build` |
 | **Output** | `dist` |
-| `VITE_API_URL` | `https://SUA-API.onrender.com` (sem `/` final, sem `/api`) |
+| `VITE_API_URL` | `https://job-match-alerts.onrender.com` (sem `/` final, sem `/api`) |
 
 Depois de salvar `VITE_API_URL` → **Redeploy** (variável Vite entra no build).
 
@@ -185,8 +195,8 @@ Cuidado: dois apps no mesmo cluster — ok para portfólio, evite em produção.
 
 ## Checklist
 
-- [ ] `DATABASE_URL` aponta para Neon/Supabase (não host `db`)
-- [ ] `/health` 200 no Render
-- [ ] `VITE_API_URL` + redeploy Vercel
-- [ ] Sem erro CORS no console do browser
-- [ ] URLs no README
+- [x] `DB_*` apontando para Supabase Session pooler (não host `db.*.supabase.co`)
+- [x] `/health` 200 no Render
+- [x] `VITE_API_URL` + redeploy Vercel
+- [x] Sem erro CORS no console do browser
+- [x] URLs no README

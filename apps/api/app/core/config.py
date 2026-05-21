@@ -122,7 +122,7 @@ def resolve_database_url() -> str:
         raise RuntimeError(
             "DATABASE_URL inválida: senha com ? ou @ quebrou o host (ficou 'postgres'). "
             "No Render prefira DB_HOST=db.xxxx.supabase.co + DB_PASSWORD (senha crua) "
-            "OU DATABASE_URL=postgresql+asyncpg://postgres:4w5cDeW%3FvvZ%40Ci8@db.xxxx.supabase.co:5432/postgres",
+            "OU DATABASE_URL=postgresql+asyncpg://postgres:SENHA_ENCODED@db.xxxx.supabase.co:5432/postgres",
         )
     return url
 

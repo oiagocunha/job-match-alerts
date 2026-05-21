@@ -20,19 +20,15 @@ Simulador ATS e pipeline de matching candidato–vaga via API REST, com FastAPI,
 
 ## Demo online
 
-Depois de publicar, você pode expor:
+| Camada | URL | Observações |
+|--------|-----|-------------|
+| **UI** (Vercel) | https://job-match-alerts-gut16pzvo-oiagocunhas-projects.vercel.app | Fluxo Perfil → Vaga → Score |
+| **API** (Render) | https://job-match-alerts.onrender.com | [Swagger `/docs`](https://job-match-alerts.onrender.com/docs) · [Health](https://job-match-alerts.onrender.com/health) |
+| **DB** | Supabase (Session pooler) | `DB_*` no Render, sem `DATABASE_URL` |
 
-| Camada | Sugestão | O que mostrar |
-|--------|----------|----------------|
-| **API** | [Render](https://render.com/) (Web Service + Postgres) | [Swagger `/docs`](https://SUA-API.onrender.com/docs) · [Health](https://SUA-API.onrender.com/health) |
-| **UI** | [Vercel](https://vercel.com/) (`apps/web`) | Fluxo Perfil → Vaga → Score |
+> Render free dorme ~30s no primeiro hit; PDFs em `/tmp/uploads` somem no restart do container.
 
 Passo a passo de deploy: [docs/DEPLOY.md](./docs/DEPLOY.md).
-
-<!-- Substitua pelas URLs reais quando publicar:
-- API Docs: https://job-match-alerts-api.onrender.com/docs
-- UI: https://job-match-alerts.vercel.app
--->
 
 Prévia da documentação e da UI (arquivos em [`docs/images/`](./docs/images/)):
 

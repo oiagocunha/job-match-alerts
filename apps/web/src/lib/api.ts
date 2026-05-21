@@ -9,7 +9,7 @@ export function getApiConfigError(): string | null {
   if (import.meta.env.DEV) return null;
   if (!API_BASE) {
     return (
-      "API não configurada: na Vercel, defina VITE_API_URL=https://SUA-API.onrender.com " +
+      "API não configurada: na Vercel, defina VITE_API_URL=https://job-match-alerts.onrender.com " +
       "(Environment Variables) e faça Redeploy — variáveis VITE_ só entram no build."
     );
   }
