@@ -71,12 +71,8 @@ def build_database_url_from_parts() -> str | None:
     port = os.getenv("DB_PORT", "5432").strip() or "5432"
     name = os.getenv("DB_NAME", "postgres").strip() or "postgres"
     safe_pass = quote_plus(password)
-    base = f"postgresql+asyncpg://{quote_plus(user)}:{safe_pass}@{host}:{port}/{name}"
-    if os.getenv("DB_SSL", "true").strip().lower() in ("1", "true", "yes", "on"):
-        sep = "&" if "?" in base else "?"
-        if "sslmode=" not in base:
-            base = f"{base}{sep}sslmode=require"
-    return base
+    # SSL: asyncpg usa connect_args["ssl"]=True em session.py (não ?sslmode= na URL).
+    return f"postgresql+asyncpg://{quote_plus(user)}:{safe_pass}@{host}:{port}/{name}"
 
 
 def _hostname_of(url: str) -> str | None:
