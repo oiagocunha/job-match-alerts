@@ -32,13 +32,20 @@ Se aparecer:
 ## 1. Postgres no Neon (5 min)
 
 1. [neon.tech](https://neon.tech) → projeto novo → copie a connection string.
-2. Ajuste para asyncpg (a API também converte `postgresql://` automaticamente):
+2. Ajuste para asyncpg (a API também converte `postgresql://` automaticamente).
+
+3. **Senha com caracteres especiais (`?`, `@`, `#`, `%`):** use a URI que o Supabase gera ao clicar em **Copy** (já vem encoded).  
+   Se colar a senha “crua”, a URL quebra e o host vira `postgres` no log.
 
    ```env
-   DATABASE_URL=postgresql+asyncpg://user:pass@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+   DATABASE_URL=postgresql+asyncpg://postgres.xxxxx:SENHA_ENCODED@aws-0-xx.pooler.supabase.com:5432/postgres
    ```
 
-   Neon costuma exigir SSL — `?sslmode=require` no final costuma funcionar com asyncpg.
+   Exemplo Neon (SSL):
+
+   ```env
+   DATABASE_URL=postgresql+asyncpg://user:pass@ep-xxxx.neon.tech/neondb?sslmode=require
+   ```
 
 3. Guarde a URL; vai no Render abaixo.
 

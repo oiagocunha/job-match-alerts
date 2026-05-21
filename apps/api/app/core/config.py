@@ -1,6 +1,7 @@
 import os
+import re
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 from dotenv import load_dotenv
 
@@ -15,15 +16,45 @@ for _dir in Path(__file__).resolve().parents:
         load_dotenv(_dir / ".env.local", override=True)
         break
 
+def _encode_password_in_url(url: str) -> str:
+    """
+    Senhas do Supabase costumam ter ?, @, #, etc.
+    Se não estiverem percent-encoded, urlparse acha host='postgres'.
+    """
+    scheme_sep = "://"
+    if scheme_sep not in url:
+        return url
+    scheme, rest = url.split(scheme_sep, 1)
+    at_idx = rest.rfind("@")
+    if at_idx == -1:
+        return url
+    creds = rest[:at_idx]
+    host_part = rest[at_idx + 1 :]
+    colon = creds.find(":")
+    if colon == -1:
+        return url
+    user = creds[:colon]
+    password = creds[colon + 1 :]
+    if not password or "%" in password:
+        return url
+    host_only = host_part.split("/")[0].split("?")[0]
+    if "." not in host_only.split(":")[0]:
+        return url
+    if not re.search(r"[?#@/&]", password):
+        return url
+    return f"{scheme}{scheme_sep}{user}:{quote_plus(password)}@{host_part}"
+
+
 def normalize_database_url(raw: str) -> str:
-    """Render/Railway costumam entregar postgres:// — asyncpg precisa de postgresql+asyncpg://."""
-    url = raw.strip()
+    """postgres:// ou postgresql:// → postgresql+asyncpg://; corrige senha sem encode."""
+    url = raw.strip().strip('"').strip("'")
     if not url:
         return url
     if url.startswith("postgres://"):
-        return "postgresql+asyncpg://" + url[len("postgres://") :]
-    if url.startswith("postgresql://") and "+asyncpg" not in url.split("://", 1)[0]:
-        return "postgresql+asyncpg://" + url[len("postgresql://") :]
+        url = "postgresql+asyncpg://" + url[len("postgres://") :]
+    elif url.startswith("postgresql://") and "+asyncpg" not in url.split("://", 1)[0]:
+        url = "postgresql+asyncpg://" + url[len("postgresql://") :]
+    url = _encode_password_in_url(url)
     return url
 
 

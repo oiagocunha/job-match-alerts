@@ -29,13 +29,18 @@ async def lifespan(_: FastAPI):
         async with engine.connect() as conn:
             await run_migrations(conn)
     except Exception as exc:
-        hint = (
-            f"Não foi possível conectar ao Postgres (host={host!r}). "
-            "No Render: crie um PostgreSQL, copie a **Internal Database URL**, "
-            "defina DATABASE_URL como postgresql+asyncpg://... (não use host 'db' do Docker) "
-            "e vincule o banco ao Web Service."
-        )
-        logging.error("%s URL configurada começa com: %s...", hint, DATABASE_URL[:40])
+        if host in ("postgres", "db"):
+            hint = (
+                "DATABASE_URL inválida: senha com ?, @ ou # precisa estar URL-encoded "
+                "(no Supabase use o botão Copy na URI já codificada). "
+                "Formato: postgresql+asyncpg://postgres:SENHA@db.xxxx.supabase.co:5432/postgres"
+            )
+        else:
+            hint = (
+                f"Não foi possível conectar ao Postgres (host={host!r}). "
+                "Confira DATABASE_URL (Supabase: Session mode, postgresql+asyncpg://, host db.*.supabase.co)."
+            )
+        logging.error("%s", hint)
         raise RuntimeError(hint) from exc
     yield
 
