@@ -6,7 +6,7 @@ Objetivo: **link da API (Swagger)** + **link da UI** sem transformar o projeto e
 
 | Camada | URL |
 |--------|-----|
-| UI (Vercel) | https://job-match-alerts-gut16pzvo-oiagocunhas-projects.vercel.app |
+| UI (Vercel) | https://job-match-alerts.vercel.app |
 | API (Render) | https://job-match-alerts.onrender.com — [/docs](https://job-match-alerts.onrender.com/docs) · [/health](https://job-match-alerts.onrender.com/health) |
 | DB | Supabase Postgres (Session pooler) |
 
@@ -97,7 +97,7 @@ DB_PASSWORD=<senha do painel Supabase>
 DB_PORT=5432
 DB_NAME=postgres
 DB_SSL=true
-CORS_ORIGINS=https://seu-app.vercel.app,http://localhost:5173
+CORS_ORIGINS=https://job-match-alerts.vercel.app,http://localhost:5173
 UPLOAD_DIR=/tmp/uploads
 OPENAI_API_KEY=sk-...
 ```
