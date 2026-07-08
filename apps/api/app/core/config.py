@@ -91,13 +91,23 @@ def _is_managed_hosting() -> bool:
     )
 
 
-def resolve_database_url() -> str:
-    from_parts = build_database_url_from_parts()
-    if from_parts:
-        return from_parts
+def _raw_database_url() -> str:
+    return os.getenv("DATABASE_URL", "").strip()
 
-    raw = os.getenv("DATABASE_URL", "").strip()
+
+def _has_db_parts() -> bool:
+    return bool(os.getenv("DB_HOST", "").strip() and os.getenv("DB_PASSWORD", "").strip())
+
+
+def resolve_database_url() -> str:
+    # Regra mais robusta para deploy:
+    # - Se DATABASE_URL existir, ela vence (single source of truth).
+    # - DB_* vira fallback para evitar mismatch host/user de pooler.
+    raw = _raw_database_url()
     if not raw:
+        from_parts = build_database_url_from_parts()
+        if from_parts:
+            return from_parts
         if _is_managed_hosting():
             raise RuntimeError(
                 "Banco não configurado no Render. Adicione no painel Environment: "
@@ -135,7 +145,9 @@ def database_host() -> str | None:
 
 
 def database_url_source() -> str:
-    if os.getenv("DB_HOST", "").strip() and os.getenv("DB_PASSWORD", "").strip():
+    if _raw_database_url():
+        return "DATABASE_URL"
+    if _has_db_parts():
         return "DB_* parts"
     return "DATABASE_URL"
 

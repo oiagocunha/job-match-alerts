@@ -59,7 +59,7 @@ Se aparecer:
 
 ---
 
-## 2. Supabase + Render (recomendado — sem `DATABASE_URL`)
+## 2. Supabase + Render (recomendado — com `DATABASE_URL`)
 
 O Render **não rejeita** o Supabase. O que acontece na prática:
 
@@ -73,7 +73,7 @@ No Web Service da API → **Environment**:
 - Se existir **Linked Postgres** / **Add from database** → **Unlink** / remova o vínculo.
 - **Apague** a variável `DATABASE_URL` (ou deixe vazia) se o valor tiver `postgres` como host ou `@db:`.
 
-O app passa a usar variáveis **`DB_*`** (mais seguro no painel).
+Depois, prefira `DATABASE_URL` única (copiada do Supabase) para evitar mismatch de `DB_HOST` + `DB_USER`.
 
 ### Passo B — Copiar dados no Supabase (Session **pooler**, não Direct)
 
@@ -88,7 +88,9 @@ No Supabase: **Connect → Session pooler** (porta **5432**).
 | Port `5432` | `DB_PORT` |
 | Database `postgres` | `DB_NAME` |
 
-No Render, crie **só estas** env vars (valores do **seu** projeto no Supabase — nunca commite senha no repo):
+Opção A (recomendada): usar **uma única** variável `DATABASE_URL` (copiar e colar do Supabase Session pooler).
+
+Opção B: usar `DB_*` (valores do **seu** projeto no Supabase — nunca commite senha no repo):
 
 ```env
 DB_HOST=aws-0-REGIAO.pooler.supabase.com
@@ -106,7 +108,7 @@ OPENAI_API_KEY=sk-...
 
 Substitua host/user pelos valores **exatos** do seu projeto (região e ref aparecem na string do Supabase).
 
-**Não** defina `DATABASE_URL` ao mesmo tempo (`DB_*` tem prioridade).
+Se usar `DATABASE_URL`, não precisa de `DB_*`.
 
 Save → **Manual Deploy**. No log: `host=aws-0-….pooler.supabase.com` (não `db.….supabase.co`).
 

@@ -24,7 +24,7 @@ Simulador ATS e pipeline de matching candidato–vaga via API REST, com FastAPI,
 |--------|-----|-------------|
 | **UI** (Vercel) | [job-match-alerts.vercel.app](https://job-match-alerts.vercel.app) | Fluxo Perfil → Vaga → Score |
 | **API** (Render) | [job-match-alerts.onrender.com](https://job-match-alerts.onrender.com) | [Swagger `/docs`](https://job-match-alerts.onrender.com/docs) · [Health](https://job-match-alerts.onrender.com/health) |
-| **DB** | Supabase (Session pooler) | `DB_*` no Render, sem `DATABASE_URL` |
+| **DB** | Supabase (Session pooler) | `DATABASE_URL` (recomendado) ou `DB_*` |
 
 > Render free dorme ~30s no primeiro hit; PDFs em `/tmp/uploads` somem no restart do container.
 

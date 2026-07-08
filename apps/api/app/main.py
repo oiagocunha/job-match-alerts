@@ -39,6 +39,12 @@ async def lifespan(_: FastAPI):
 def _db_connect_hint(host: str | None, source: str, exc: BaseException) -> str:
     base = f"Falha ao conectar no Postgres (host={host!r}, via {source})."
     err = f"{type(exc).__name__}: {exc}".lower()
+    if "tenant/user" in err and "not found" in err:
+        return (
+            f"{base} Supabase pooler não reconheceu o usuário (tenant/user not found). "
+            "Copie a URI completa em Supabase → Connect → Session pooler e use em DATABASE_URL "
+            "(recomendado), ou revise DB_HOST + DB_USER do mesmo projeto."
+        )
     if host and host.startswith("db.") and host.endswith(".supabase.co"):
         if "network is unreachable" in err or "errno 101" in err:
             return (
